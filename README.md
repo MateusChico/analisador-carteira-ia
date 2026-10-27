@@ -103,4 +103,4 @@ Projeto educacional. A explicação gerada pela IA não é recomendação de inv
 
 ## Autor
 
-Mateus, estudante de ADS, interessado na união entre tecnologia e mercado financeiro.
+Mateus, estudante de ADS.
