@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Analisador de Carteira com IA</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+:root{--bg:#eef2f4;--surface:#fff;--ink:#12262e;--mute:#5a6b73;--line:#d5dde1;--accent:#0c6b7a;--warn:#c4631d;
+--c0:#0c6b7a;--c1:#e0a526;--c2:#7a4f9e;--c3:#c4631d;--c4:#3d8b4f;--c5:#b5405a;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1a1f;--surface:#15262d;--ink:#e6eef1;--mute:#93a6ae;--line:#26404a;--accent:#4fb8c9;--warn:#f0954d;
+--c0:#4fb8c9;--c1:#f0c04d;--c2:#b68ae0;--c3:#f0954d;--c4:#72c286;--c5:#e5708a}}
+:root[data-theme="dark"]{--bg:#0e1a1f;--surface:#15262d;--ink:#e6eef1;--mute:#93a6ae;--line:#26404a;--accent:#4fb8c9;--warn:#f0954d;
+--c0:#4fb8c9;--c1:#f0c04d;--c2:#b68ae0;--c3:#f0954d;--c4:#72c286;--c5:#e5708a}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Source Sans 3",system-ui,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:28px 18px 48px}
+h1{font:700 clamp(28px,5vw,40px)/1.1 "Bricolage Grotesque",system-ui,sans-serif;margin:0 0 6px;letter-spacing:-.02em}
+.sub{color:var(--mute);margin:0 0 26px;max-width:60ch}
+.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:18px}
+@media (max-width:760px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+h2{font:700 18px/1.2 "Bricolage Grotesque",system-ui,sans-serif;margin:0 0 14px}
+.row{display:grid;grid-template-columns:1fr 1fr 36px;gap:8px;margin-bottom:8px}
+label.h{font-size:13px;color:var(--mute)}
+input{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 10px}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:600 15px "Source Sans 3",system-ui,sans-serif;border-radius:6px;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--ink);padding:9px 12px}
+button.x{padding:0;color:var(--mute)}
+button.main{background:var(--accent);border-color:var(--accent);color:#fff;width:100%;margin-top:12px;padding:11px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) button.main{color:#06222a}}
+.total{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.total b{font:700 28px "Bricolage Grotesque",system-ui,sans-serif}
+.bar{display:flex;height:34px;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.bar div{height:100%;min-width:2px}
+table{width:100%;border-collapse:collapse;margin:16px 0 4px;font-variant-numeric:tabular-nums}
+td,th{padding:8px 4px;border-bottom:1px solid var(--line);text-align:right;font-size:15px}
+th{font-weight:600;color:var(--mute);font-size:13px}
+td:first-child,th:first-child{text-align:left}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px}
+.hhi{margin-top:18px}
+.meter{position:relative;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--c4),var(--c1),var(--warn));margin:10px 0 6px}
+.meter i{position:absolute;top:-5px;width:4px;height:20px;background:var(--ink);border-radius:2px;transform:translateX(-2px)}
+.scale{display:flex;justify-content:space-between;font-size:12px;color:var(--mute)}
+.ia{margin-top:18px;border-left:3px solid var(--accent);padding:4px 0 4px 14px}
+.ia p{margin:0 0 6px}
+.note{font-size:13px;color:var(--mute)}
+.empty{color:var(--mute);padding:40px 0;text-align:center}
+</style>
+</head>
+<body>
+<main>
+<h1>Analisador de carteira</h1>
+<p class="sub">Informe seus ativos e valores. O código calcula o peso de cada um e o índice de concentração, e a IA explica o resultado em poucas linhas.</p>
+<div class="grid">
+  <section class="card">
+    <h2>Sua carteira</h2>
+    <div class="row"><label class="h">Ticker</label><label class="h">Valor (R$)</label><span></span></div>
+    <div id="rows"></div>
+    <button id="add" type="button">Adicionar ativo</button>
+    <button id="go" class="main" type="button">Analisar carteira</button>
+  </section>
+  <section class="card" id="out" aria-live="polite"></section>
+</div>
+</main>
+<script>
+var CORES=["var(--c0)","var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)"];
+var rows=document.getElementById("rows"),out=document.getElementById("out");
+function fmt(n){return n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function addRow(t,v){
+  var d=document.createElement("div");d.className="row";
+  d.innerHTML='<input aria-label="Ticker" value="'+(t||"")+'" placeholder="PETR4"><input aria-label="Valor em reais" type="number" min="0" step="any" value="'+(v||"")+'" placeholder="1000"><button class="x" type="button" aria-label="Remover ativo">×</button>';
+  d.querySelector(".x").onclick=function(){d.remove()};
+  rows.appendChild(d);
+}
+function texto(m){
+  var h=m.hhi,top=m.maior;
+  var nivel=h<0.35?"baixa":h<0.6?"moderada":"alta";
+  var a="A concentração da carteira é "+nivel+" (HHI de "+h.toLocaleString("pt-BR")+"). ";
+  a+=top.t+" é a maior posição, com "+fmt(top.p)+"% do total. ";
+  if(nivel==="alta")a+="Isso significa que o resultado depende muito de poucos ativos, então vale observar o risco de uma queda concentrada.";
+  else if(nivel==="moderada")a+="Há alguma diversificação, mas uma posição ainda pesa bastante no resultado.";
+  else a+="O capital está bem distribuído, e nenhum ativo isolado domina o resultado.";
+  return a;
+}
+function analisar(){
+  var L=[];
+  rows.querySelectorAll(".row").forEach(function(r){
+    var i=r.querySelectorAll("input"),t=i[0].value.trim().toUpperCase(),v=parseFloat(i[1].value);
+    if(t&&v>0)L.push({t:t,v:v});
+  });
+  if(!L.length){out.innerHTML='<div class="empty">Preencha ao menos um ativo com ticker e valor maior que zero.</div>';return}
+  var tot=L.reduce(function(s,a){return s+a.v},0);
+  L.forEach(function(a){a.p=Math.round(a.v/tot*10000)/100});
+  var hhi=Math.round(L.reduce(function(s,a){return s+Math.pow(a.p/100,2)},0)*1000)/1000;
+  var maior=L.reduce(function(m,a){return a.p>m.p?a:m},L[0]);
+  var barra=L.map(function(a,i){return '<div title="'+a.t+'" style="width:'+a.p+'%;background:'+CORES[i%6]+'"></div>'}).join("");
+  var linhas=L.map(function(a,i){return '<tr><td><span class="dot" style="background:'+CORES[i%6]+'"></span>'+a.t+'</td><td>R$ '+fmt(a.v)+'</td><td>'+fmt(a.p)+'%</td></tr>'}).join("");
+  var pos=Math.min(100,hhi*100);
+  out.innerHTML='<div class="total"><span class="note">Total investido</span><b>R$ '+fmt(tot)+'</b></div>'
+  +'<div class="bar" role="img" aria-label="Distribuição da carteira">'+barra+'</div>'
+  +'<table><thead><tr><th>Ativo</th><th>Valor</th><th>Peso</th></tr></thead><tbody>'+linhas+'</tbody></table>'
+  +'<div class="hhi"><b>Índice de concentração (HHI): '+hhi.toLocaleString("pt-BR")+'</b><div class="meter"><i style="left:'+pos+'%"></i></div><div class="scale"><span>Diversificada</span><span>Concentrada</span></div></div>'
+  +'<div class="ia"><p>'+texto({hhi:hhi,maior:maior})+'</p><span class="note">Texto de exemplo gerado por regras nesta demonstração. Na API real, essa explicação vem da IA.</span></div>';
+}
+addRow("PETR4",5000);addRow("VALE3",3000);addRow("ITUB4",2000);
+document.getElementById("add").onclick=function(){addRow()};
+document.getElementById("go").onclick=analisar;
+analisar();
+</script>
+</body>
+</html>
